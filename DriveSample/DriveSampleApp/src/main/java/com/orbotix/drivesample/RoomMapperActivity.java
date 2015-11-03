@@ -10,4 +10,10 @@ public class RoomMapperActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_room_mapper);
     }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+    }
 }
