@@ -7,6 +7,17 @@
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
         <option name="gradleHome" value="$APPLICATION_HOME_DIR$/gradle/gradle-2.4" />
         <option name="gradleJvm" value="1.8" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/CalibrationLibrary" />
+            <option value="$PROJECT_DIR$/ColorPickerLibrary" />
+            <option value="$PROJECT_DIR$/DriveSampleApp" />
+            <option value="$PROJECT_DIR$/JoystickLibrary" />
+            <option value="$PROJECT_DIR$/RobotPickerLibrary" />
+            <option value="$PROJECT_DIR$/SpeedSliderLibrary" />
+          </set>
+        </option>
       </GradleProjectSettings>
     </option>
   </component>

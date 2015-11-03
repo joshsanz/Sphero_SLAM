@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">DriveSample</string>
     <string name="developer_mode">Developer Mode</string>
+    <string name="map_button">Map Room</string>
 </resources>
