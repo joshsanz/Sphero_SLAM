@@ -21,7 +21,7 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['RobotLibrary.jar'])
-    compile 'com.android.support:appcompat-v7:22.0.0'
+    compile 'com.android.support:appcompat-v7:21.0.0'
     compile 'com.jjoe64:graphview:4.0.1'
     compile project(':CalibrationLibrary')
     compile project(':ColorPickerLibrary')

@@ -2,6 +2,7 @@ package com.orbotix.drivesample;
 
 import android.app.Activity;
 import android.app.FragmentTransaction;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -85,6 +86,12 @@ public class MainActivity extends Activity implements RobotPickerDialog.RobotPic
      */
     private LinearLayout _developerModeLayout;
 
+    /**
+     * The button to enter mapping mode
+     */
+    private Button _mapButton;
+
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -93,6 +100,14 @@ public class MainActivity extends Activity implements RobotPickerDialog.RobotPic
         setupJoystick();
         setupCalibration();
         setupColorPicker();
+
+        final Button _mapButton = (Button) findViewById(R.id.mapButton);
+        _mapButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Intent mappingIntent = new Intent(MainActivity.this, RoomMapperActivity.class);
+                MainActivity.this.startActivity(mappingIntent);
+            }
+        });
 
         // Here, you need to route all the touch events to the joystick and calibration view so that they know about
         // them. To do this, you need a way to reference the view (in this case, the id "entire_view") and attach
@@ -124,8 +139,7 @@ public class MainActivity extends Activity implements RobotPickerDialog.RobotPic
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
+    protected void onStop() {
         if (_currentDiscoveryAgent != null) {
             // When pausing, you want to make sure that you let go of the connection to the robot so that it may be
             // accessed from within other applications. Before you do that, it is a good idea to unregister for the robot
@@ -144,6 +158,7 @@ public class MainActivity extends Activity implements RobotPickerDialog.RobotPic
                 // to leave a robot on but disconnected, you should use Robot#sleep()
                 r.sleep();
             }
+            super.onStop();
         }
     }
 
