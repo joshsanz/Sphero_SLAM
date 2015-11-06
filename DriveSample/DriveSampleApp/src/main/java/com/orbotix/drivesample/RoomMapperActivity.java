@@ -3,8 +3,6 @@ package com.orbotix.drivesample;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 
 import com.jjoe64.graphview.GraphView;
@@ -13,12 +11,19 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 import com.jjoe64.graphview.series.PointsGraphSeries;
 import com.orbotix.ConvenienceRobot;
 import com.orbotix.Sphero;
+import com.orbotix.async.CollisionDetectedAsyncData;
+import com.orbotix.async.DeviceSensorAsyncMessage;
 import com.orbotix.classic.DiscoveryAgentClassic;
 import com.orbotix.common.DiscoveryAgent;
 import com.orbotix.common.DiscoveryAgentEventListener;
 import com.orbotix.common.DiscoveryException;
+import com.orbotix.common.ResponseListener;
 import com.orbotix.common.Robot;
 import com.orbotix.common.RobotChangedStateListener;
+import com.orbotix.common.internal.AsyncMessage;
+import com.orbotix.common.internal.DeviceResponse;
+import com.orbotix.common.sensor.SensorFlag;
+import com.orbotix.subsystem.SensorControl;
 
 import java.util.List;
 
@@ -29,6 +34,28 @@ public class RoomMapperActivity extends Activity implements DiscoveryAgentEventL
 
     private DiscoveryAgent _currentDiscoveryAgent;
     private ConvenienceRobot _connectedRobot;
+    private static long _sensorFlags = SensorFlag.ACCELEROMETER_NORMALIZED.longValue()
+            | SensorFlag.GYRO_NORMALIZED.longValue()
+            | SensorFlag.VELOCITY.longValue()
+            | SensorFlag.LOCATOR.longValue();
+
+    private double _posX;
+    private double _posY;
+    private double _posZ;
+    private double _zDot;
+    private double _yaw;
+    private double _pitch;
+
+    private double _accelX;
+    private double _accelY;
+    private double _accelZ;
+    private double _gyroX;
+    private double _gyroY;
+    private double _gyroZ;
+    private double _locX;
+    private double _locY;
+    private double _velX;
+    private double _velY;
 
     private GraphView _graph;
     private LineGraphSeries<DataPoint> _lSeries;
@@ -53,26 +80,26 @@ public class RoomMapperActivity extends Activity implements DiscoveryAgentEventL
         _currentDiscoveryAgent = DiscoveryAgentClassic.getInstance();
         startDiscovery();
 
-        // Set up a sample graph
-        _lSeries = new LineGraphSeries<>(new DataPoint[] {
-                new DataPoint(0, 1),
-                new DataPoint(1, 5),
-                new DataPoint(2, 3),
-                new DataPoint(3, 2),
-                new DataPoint(4, 6),
-                new DataPoint(3, 4),
-                new DataPoint(1, 3)
-        });
-
-        _pSeries = new PointsGraphSeries<>(new DataPoint[] {
-                new DataPoint(0, 1),
-                new DataPoint(1, 5),
-                new DataPoint(2, 3),
-                new DataPoint(3, 2),
-                new DataPoint(4, 6),
-                new DataPoint(3, 4),
-                new DataPoint(1, 3)
-        });
+//        // Set up a sample graph
+        _lSeries = new LineGraphSeries<>(new DataPoint[] {});
+//                new DataPoint(0, 1),
+//                new DataPoint(1, 5),
+//                new DataPoint(2, 3),
+//                new DataPoint(3, 2),
+//                new DataPoint(4, 6),
+//                new DataPoint(3, 4),
+//                new DataPoint(1, 3)
+//        });
+//
+        _pSeries = new PointsGraphSeries<>(new DataPoint[] {});
+//                new DataPoint(0, 1),
+//                new DataPoint(1, 5),
+//                new DataPoint(2, 3),
+//                new DataPoint(3, 2),
+//                new DataPoint(4, 6),
+//                new DataPoint(3, 4),
+//                new DataPoint(1, 3)
+//        });
 
         _graph.addSeries(_lSeries);
         _graph.addSeries(_pSeries);
@@ -86,24 +113,27 @@ public class RoomMapperActivity extends Activity implements DiscoveryAgentEventL
     protected void onPause() {
         super.onPause();
         if (_currentDiscoveryAgent != null) {
-            // When pausing, you want to make sure that you let go of the connection to the robot so that it may be
-            // accessed from within other applications. Before you do that, it is a good idea to unregister for the robot
-            // state change events so that you don't get the disconnection event while the application is closed.
-            // This is accomplished by using DiscoveryAgent#removeRobotStateListener().
             _currentDiscoveryAgent.removeRobotStateListener(this);
-
-            // Here we are only handling disconnecting robots if the user selected a type of robot to connect to. If you
-            // didn't use the robot picker, you will need to check the appropriate discovery agent manually by using
-            // DiscoveryAgent.getInstance().getConnectedRobots()
             for (Robot r : _currentDiscoveryAgent.getConnectedRobots()) {
-                // There are a couple ways to disconnect a robot: sleep and disconnect. Sleep will disconnect the robot
-                // in addition to putting it into standby mode. If you choose to just disconnect the robot, it will
-                // use more power than if it were in standby mode. In the case of Ollie, the main LED light will also
-                // turn a bright purple, indicating that it is on but disconnected. Unless you have a specific reason
-                // to leave a robot on but disconnected, you should use Robot#sleep()
                 r.sleep();
             }
         }
+    }
+    @Override
+    protected void onStop() {
+        if (_currentDiscoveryAgent != null) {
+            _currentDiscoveryAgent.removeRobotStateListener(this);
+            for (Robot r : _currentDiscoveryAgent.getConnectedRobots()) {
+                r.sleep();
+            }
+        }
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        DiscoveryAgentClassic.getInstance().addRobotStateListener(null);
     }
 
     /**
@@ -151,38 +181,87 @@ public class RoomMapperActivity extends Activity implements DiscoveryAgentEventL
         switch (type) {
             // A robot was connected, and is ready for you to send commands to it.
             case Online:
-                // When a robot is connected, this is a good time to stop discovery. Discovery takes a lot of system
-                // resources, and if left running, will cause your app to eat the user's battery up, and may cause
-                // your application to run slowly. To do this, use DiscoveryAgent#stopDiscovery().
                 _currentDiscoveryAgent.stopDiscovery();
-                // It is also proper form to not allow yourself to re-register for the discovery listeners, so let's
-                // unregister for the available notifications here using DiscoveryAgent#removeDiscoveryListener().
                 _currentDiscoveryAgent.removeDiscoveryListener(this);
-                // Don't forget to turn on UI elements
-
                 _connectedRobot = new Sphero(robot);
-
                 _logTextView.append("Name: " + _connectedRobot.getRobot().getName() + "\n");
 
-                // Finally for visual feedback let's turn the robot green saying that it's been connected
-                _connectedRobot.setLed(.1f, .7f, .2f);
+                // For visual feedback let's turn the robot green saying that it's been connected
+                _connectedRobot.setLed(.5f, .7f, .5f);
 
+                // Enable sensors and register a listener for messages
+                _connectedRobot.enableCollisions(true);
+                _connectedRobot.enableSensors(_sensorFlags, SensorControl.StreamingRate.STREAMING_RATE10);
+                _connectedRobot.addResponseListener(new ResponseListener() {
+                    @Override
+                    public void handleAsyncMessage(AsyncMessage asyncMessage, Robot robot) {
+                        if (asyncMessage instanceof DeviceSensorAsyncMessage) {
+                            DeviceSensorAsyncMessage message = (DeviceSensorAsyncMessage) asyncMessage;
+                            if( message.getAsyncData() == null
+                                    || message.getAsyncData().isEmpty()
+                                    || message.getAsyncData().get( 0 ) == null )
+                                return;
+                            _accelX = message.getAsyncData().get(0).getAccelerometerData().getFilteredAcceleration().x;
+                            _accelY = message.getAsyncData().get(0).getAccelerometerData().getFilteredAcceleration().y;
+                            _accelZ = message.getAsyncData().get(0).getAccelerometerData().getFilteredAcceleration().z;
+
+                            _gyroX = message.getAsyncData().get(0).getGyroData().getRotationRateFiltered().x;
+                            _gyroY = message.getAsyncData().get(0).getGyroData().getRotationRateFiltered().y;
+                            _gyroZ = message.getAsyncData().get(0).getGyroData().getRotationRateFiltered().z;
+
+                            _locX = message.getAsyncData().get(0).getLocatorData().getPositionX();
+                            _locY = message.getAsyncData().get(0).getLocatorData().getPositionY();
+                            _velX = message.getAsyncData().get(0).getLocatorData().getVelocity().x;
+                            _velY = message.getAsyncData().get(0).getLocatorData().getVelocity().y;
+                            updateTrack();
+                        } else if (asyncMessage instanceof CollisionDetectedAsyncData) {
+                            addLandmark();
+                            setNewHeading();
+                        }
+                    }
+
+                    @Override
+                    public void handleResponse(DeviceResponse deviceResponse, Robot robot) {
+                    }
+                    @Override
+                    public void handleStringResponse(String s, Robot robot) {
+                    }
+                });
+
+                _connectedRobot.drive(0.0f, 0.1f);
                 break;
             case Disconnected:
-                // When a robot disconnects, it is a good idea to disable UI elements that send commands so that you
-                // do not have to handle the user continuing to use them while the robot is not connected
-
-
-                // When a robot disconnects, you might want to start discovery so that you can reconnect to a robot.
-                // Starting discovery on disconnect however can cause unintended side effects like connecting to
-                // a robot with the application closed. You should think carefully of when to start and stop discovery.
-                // In this case, we will not start discovery when the robot disconnects. You can uncomment the following line of
-                // code to see the start discovery on disconnection in action.
                 startDiscovery();
                 break;
             default:
                 Log.v(TAG, "Not handling state change notification: " + type);
                 break;
         }
+    }
+
+    private void updateTrack() {
+        // Basic implementation, no filtering
+        _posX = _locX;
+        _posY = _locY;
+        _posZ = _posZ + _zDot * 0.1;
+        _zDot = _zDot + _accelZ * 0.1;
+
+        _yaw = Math.atan2(_velY, _velX);
+        _pitch = _pitch + _gyroZ * 0.1;
+
+        _lSeries.appendData(new DataPoint(_posX, _posY), true, 10000);
+        _logTextView.append("Update: Position: (" + _posX + ", " + _posY + "), Heading: " + (_yaw * 180 / Math.PI) + "\n");
+    }
+
+    private void addLandmark() {
+        _pSeries.appendData(new DataPoint(_posX, _posY), true, 100);
+    }
+
+    private void setNewHeading() {
+        float newHeading = (float) (_yaw + (Math.random() * 170.0 + 95) * 180 / Math.PI);
+        if (Math.abs(newHeading) > Math.PI) {
+            newHeading *= Math.signum(newHeading);
+        }
+        _connectedRobot.drive(newHeading, 0.1f);
     }
 }

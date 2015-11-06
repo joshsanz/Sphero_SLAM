@@ -139,7 +139,8 @@ public class MainActivity extends Activity implements RobotPickerDialog.RobotPic
     }
 
     @Override
-    protected void onStop() {
+    protected void onPause() {
+        super.onPause();
         if (_currentDiscoveryAgent != null) {
             // When pausing, you want to make sure that you let go of the connection to the robot so that it may be
             // accessed from within other applications. Before you do that, it is a good idea to unregister for the robot
@@ -158,7 +159,6 @@ public class MainActivity extends Activity implements RobotPickerDialog.RobotPic
                 // to leave a robot on but disconnected, you should use Robot#sleep()
                 r.sleep();
             }
-            super.onStop();
         }
     }
 
