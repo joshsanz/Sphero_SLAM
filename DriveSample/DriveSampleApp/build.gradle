@@ -19,7 +19,12 @@ android {
     }
 }
 
+repositories {
+    maven { url "https://jitpack.io" }
+}
+
 dependencies {
+    compile 'com.github.PhilJay:MPAndroidChart:v2.1.6'
     compile fileTree(dir: 'libs', include: ['RobotLibrary.jar'])
     compile 'com.android.support:appcompat-v7:21.0.0'
     compile 'com.jjoe64:graphview:4.0.1'
